@@ -1,0 +1,29 @@
+{
+  "name": "VespaTimer - Pot-à-Mèche",
+  "short_name": "VespaTimer",
+  "description": "Assistant digital pour relevés Pot-à-Mèche et triangulation de nids de frelons asiatiques",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "vespatimer-app",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f5f2e6",
+  "theme_color": "#d4a853",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23d4a853'/%3E%3Ctext x='90' y='130' font-size='110' text-anchor='middle'%3E🐝%3C/text%3E%3C/svg%3E",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "lang": "fr",
+  "categories": ["utilities", "productivity"],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}
