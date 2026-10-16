@@ -415,102 +415,61 @@ function getNestCoordsForHornet(h,loc){var d=getDist(getAvg(h));if(d<=0)return n
 function getNestCoords(h){return getNestCoordsForHornet(h,surveyLocation);}
 function createOval(center,dirDeg){var pts=[];var hw=100,hh=50;var dirRad=(dirDeg*Math.PI)/180;var perpRad=dirRad+Math.PI/2;for(var i=0;i<64;i++){var angle=(i/64)*2*Math.PI;var rx=hh*Math.cos(angle);var ry=hw*Math.sin(angle);pts.push(L.latLng(center.lat+(rx/111320)*Math.cos(dirRad)-(ry/111320)*Math.cos(perpRad),center.lng+(rx/(111320*Math.cos(center.lat*Math.PI/180)))*Math.sin(dirRad)-(ry/(111320*Math.cos(center.lat*Math.PI/180)))*Math.sin(perpRad)));}return pts;}
 
-function saveAll(){try{localStorage.setItem('vd_v2',JSON.stringify({hornets:hornets,surveyLocation:surveyLocation,inspectorName:inspectorName,notes:notes,personalInfo:personalInfo,collapsedCards:collapsedCards}));}catch(e){}}
-function getHist(){try{var data=localStorage.getItem('vh_v2');if(!data)return[];var parsed=JSON.parse(data);if(Array.isArray(parsed))return parsed;return[];}catch(e){return[];}}
-function saveHist(){var hist=[];try{hist=JSON.parse(localStorage.getItem('vh_v2')||'[]');}catch(e){}var newEntry={date:new Date().toISOString(),location:{lat:surveyLocation.lat,lng:surveyLocation.lng,name:surveyLocation.name},hornets:hornets.map(function(h){return{name:h.name,direction:h.direction,flights:h.flights.slice(),color:h.color};}),notes:notes,inspectorName:inspectorName,personalInfo:personalInfo};if(resumedFromIndex>=0&&resumedFromIndex<hist.length){hist[resumedFromIndex]=newEntry;}else{hist.push(newEntry);}if(hist.length>MAX_HISTORY)hist=hist.slice(-MAX_HISTORY);var cutoff=Date.now()-HISTORY_DAYS*24*60*60*1000;hist=hist.filter(function(e){return new Date(e.date)>new Date(cutoff);});try{localStorage.setItem('vh_v2',JSON.stringify(hist));}catch(e){}localStorage.setItem('resumed_idx',resumedFromIndex);sendNotification(t('pot_saved_notif'),''+(newEntry.location.name||t('no_name'))+' • '+(newEntry.hornets?newEntry.hornets.length:0)+' '+t('hornets'));checkHistoryExpiry();}
-function loadAll(){
-  // ---- v1.4 → v2.0 migration (archive v2.0 pot, install v1.4 pot) ----
+function saveAll(){
   try {
-    var oldVd = localStorage.getItem('vd');
-    var oldVh = localStorage.getItem('vh');
-    var oldVl = localStorage.getItem('vl');
-    var alreadyMigrated = localStorage.getItem('migrated_from_v14') === 'true';
-    
-    if (oldVd && !alreadyMigrated) {
-      var v2Data = null;
-      try { v2Data = JSON.parse(localStorage.getItem('vd_v2') || 'null'); } catch(e) {}
-      var v14Data = null;
-      try { v14Data = JSON.parse(oldVd); } catch(e) {}
-      
-      var histV2 = [];
-      try { histV2 = JSON.parse(localStorage.getItem('vh_v2') || '[]'); } catch(e) {}
-      
-      // Step 1: Archive the v2.0 current pot to history (no matter what)
-      if (v2Data && v2Data.hornets && v2Data.hornets.length) {
-        histV2.push({
-          date: new Date().toISOString(),
-          location: v2Data.surveyLocation || {lat:46.8, lng:6.8, name:''},
-          hornets: v2Data.hornets.map(function(h){
-            return {
-              name: h.name,
-              direction: h.direction,
-              flights: (h.flights || []).slice(),
-              color: h.color || null
-            };
-          }),
-          notes: v2Data.notes || '',
-          inspectorName: v2Data.inspectorName || '',
-          personalInfo: v2Data.personalInfo || {firstName:'', lastName:'', phone:''}
-        });
-        console.log('[MIGRATION] Archived v2.0 current pot to history');
-      }
-      
-      // Step 2: Install v1.4 current pot as the new v2.0 current pot
-      if (v14Data) {
-        localStorage.setItem('vd_v2', oldVd);
-        console.log('[MIGRATION] Installed v1.4 pot as current');
-      }
-      
-      // Step 3: Merge v1.4 history into v2.0 history (dedupe by date+location)
-      if (oldVh) {
-        var v14Hist = [];
-        try { v14Hist = JSON.parse(oldVh); } catch(e) {}
-        if (Array.isArray(v14Hist) && v14Hist.length) {
-          for (var h = 0; h < v14Hist.length; h++) {
-            var isDup = false;
-            for (var g = 0; g < histV2.length; g++) {
-              if (histV2[g].date === v14Hist[h].date &&
-                  histV2[g].location && v14Hist[h].location &&
-                  histV2[g].location.lat === v14Hist[h].location.lat &&
-                  histV2[g].location.lng === v14Hist[h].location.lng) {
-                isDup = true;
-                break;
-              }
-            }
-            if (!isDup) histV2.push(v14Hist[h]);
-          }
-        }
-      }
-      histV2.sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
-      if (histV2.length > MAX_HISTORY) histV2 = histV2.slice(-MAX_HISTORY);
-      localStorage.setItem('vh_v2', JSON.stringify(histV2));
-      console.log('[MIGRATION] History: ' + histV2.length + ' entries total');
-      
-      // Step 4: Language — use v1.4 if v2.0 has none
-      if (oldVl && !localStorage.getItem('vl_v2')) {
-        localStorage.setItem('vl_v2', oldVl);
-      }
-      
-      // Step 5: Mark migrated + delete v1.4 keys
-      localStorage.setItem('migrated_from_v14', 'true');
-      localStorage.removeItem('vd');
-      localStorage.removeItem('vh');
-      localStorage.removeItem('vl');
-      console.log('[MIGRATION] Complete — v1.4 keys removed');
-    } else if (oldVd && alreadyMigrated) {
-      // v1.4 keys reappeared somehow — just clean them up
-      localStorage.removeItem('vd');
-      localStorage.removeItem('vh');
-      localStorage.removeItem('vl');
-    }
-  } catch(e) {
-    console.error('[MIGRATION] Error:', e);
+    localStorage.setItem('vd', JSON.stringify({
+      hornets: hornets,
+      surveyLocation: surveyLocation,
+      inspectorName: inspectorName,
+      notes: notes,
+      personalInfo: personalInfo,
+      collapsedCards: collapsedCards
+    }));
+  } catch(e) {}
+}
+function getHist(){
+  try {
+    var data = localStorage.getItem('vh');
+    if (!data) return [];
+    var parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch(e) { return []; }
+}
+function saveHist(){
+  var hist = [];
+  try { hist = JSON.parse(localStorage.getItem('vh') || '[]'); } catch(e) {}
+  var newEntry = {
+    date: new Date().toISOString(),
+    location: { lat: surveyLocation.lat, lng: surveyLocation.lng, name: surveyLocation.name },
+    hornets: hornets.map(function(h){
+      return {
+        name: h.name,
+        direction: h.direction,
+        flights: h.flights.slice(),
+        color: h.color
+      };
+    }),
+    notes: notes,
+    inspectorName: inspectorName,
+    personalInfo: personalInfo
+  };
+  if (resumedFromIndex >= 0 && resumedFromIndex < hist.length) {
+    hist[resumedFromIndex] = newEntry;
+  } else {
+    hist.push(newEntry);
   }
-  // ---- end migration ----
-  
-  // ---- Load v2.0 data ----
+  if (hist.length > MAX_HISTORY) hist = hist.slice(-MAX_HISTORY);
+  var cutoff = Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000;
+  hist = hist.filter(function(e){ return new Date(e.date) > new Date(cutoff); });
+  try { localStorage.setItem('vh', JSON.stringify(hist)); } catch(e) {}
+  localStorage.setItem('resumed_idx', resumedFromIndex);
+  sendNotification(t('pot_saved_notif'), '' + (newEntry.location.name || t('no_name')) + ' • ' + (newEntry.hornets ? newEntry.hornets.length : 0) + ' ' + t('hornets'));
+  checkHistoryExpiry();
+}
+function loadAll(){
   try {
-    var d = JSON.parse(localStorage.getItem('vd_v2'));
+    var d = JSON.parse(localStorage.getItem('vd'));
     if (d) {
       if (d.hornets) hornets = d.hornets;
       if (d.surveyLocation) surveyLocation = d.surveyLocation;
@@ -521,7 +480,7 @@ function loadAll(){
     }
   } catch(e) {}
   
-  var sl = localStorage.getItem('vl_v2');
+  var sl = localStorage.getItem('vl');
   if (sl && translations[sl]) currentLang = sl;
   notificationsEnabled = localStorage.getItem('notif_enabled') === 'true';
   document.getElementById('firstName').value = personalInfo.firstName || '';
@@ -543,22 +502,101 @@ function updateNotifButton(){var btn=document.getElementById('notifBtnLabel');if
 function checkHistoryExpiry(){var hist=getHist();var cutoff=Date.now()-HISTORY_DAYS*24*60*60*1000;var expiring=hist.filter(function(e){var diff=new Date(e.date).getTime()-cutoff;return diff<24*60*60*1000&&diff>0;});if(expiring.length>0){sendNotification(t('history_expiry_title'),expiring.length+' '+t('history_expiry_text'));}}
 
 function showUndoButton(){var existing=document.getElementById('undoDelete');if(existing)existing.remove();var btn=document.createElement('button');btn.id='undoDelete';btn.className='btn-gold btn-sm';btn.innerHTML='↩️ '+t('undo_delete');btn.onclick=undoDelete;document.body.appendChild(btn);clearTimeout(undoTimer);undoTimer=setTimeout(function(){var b=document.getElementById('undoDelete');if(b)b.remove();lastDeleted=null;},5000);}
-function undoDelete(){if(!lastDeleted)return;if(Date.now()-lastDeleted.timestamp>5000)return;switch(lastDeleted.type){case'flight':var h=hornets.find(function(x){return x.id===lastDeleted.hornetId});if(h)h.flights.splice(lastDeleted.index,0,lastDeleted.value);break;case'hornet':if(hornets.length<MAX_HORNETS)hornets.push(lastDeleted.hornet);break;case'history':var hist=getHist();hist.splice(lastDeleted.index,0,lastDeleted.entry);localStorage.setItem('vh_v2',JSON.stringify(hist));showHistory();break;}renderAll();saveAll();if(map)drawAnalysis();lastDeleted=null;var b=document.getElementById('undoDelete');if(b)b.remove();showToast(t('undo_success'));}
-
+function undoDelete(){
+  if (!lastDeleted) return;
+  if (Date.now() - lastDeleted.timestamp > 5000) return;
+  switch (lastDeleted.type) {
+    case 'flight':
+      var h = hornets.find(function(x){ return x.id === lastDeleted.hornetId; });
+      if (h) h.flights.splice(lastDeleted.index, 0, lastDeleted.value);
+      break;
+    case 'hornet':
+      if (hornets.length < MAX_HORNETS) hornets.push(lastDeleted.hornet);
+      break;
+    case 'history':
+      var hist = getHist();
+      hist.splice(lastDeleted.index, 0, lastDeleted.entry);
+      localStorage.setItem('vh', JSON.stringify(hist));
+      showHistory();
+      break;
+  }
+  renderAll();
+  saveAll();
+  if (map) drawAnalysis();
+  lastDeleted = null;
+  var b = document.getElementById('undoDelete');
+  if (b) b.remove();
+  showToast(t('undo_success'));
+}
+    
 function deleteFlight(hid,idx){var h=hornets.find(function(x){return x.id===hid});if(!h||idx<0||idx>=h.flights.length)return;lastDeleted={type:'flight',hornetId:hid,index:idx,value:h.flights[idx],timestamp:Date.now()};h.flights.splice(idx,1);renderAll();saveAll();showUndoButton();}
 function deleteHornet(id){if(hornets.length<=1){showAlert(t('keep_one_hornet'),'🐝');return;}var h=hornets.find(function(x){return x.id===id});if(!h)return;lastDeleted={type:'hornet',hornet:h,timestamp:Date.now()};hornets=hornets.filter(function(x){return x.id!==id});delete collapsedCards[id];renderAll();saveAll();showUndoButton();}
-function deleteHistEntry(index){var hist=getHist();if(index<0||index>=hist.length)return;lastDeleted={type:'history',entry:hist[index],index:index,timestamp:Date.now()};hist.splice(index,1);localStorage.setItem('vh_v2',JSON.stringify(hist));showHistory();showUndoButton();}
-
-function resumeHistEntryByIndex(index){var hist=getHist();if(index<0||index>=hist.length){showAlert(t('entry_not_found'),'❌');return;}var entry=hist[index];var hasCurrentData=hornets.some(function(h){return h.flights.length>0})||surveyLocation.name||inspectorName||notes;if(hasCurrentData){saveHist();}surveyLocation=entry.location||{lat:46.8,lng:6.8,name:''};inspectorName=entry.inspectorName||'';notes=entry.notes||'';if(entry.personalInfo){personalInfo=entry.personalInfo;}else{personalInfo={firstName:'',lastName:'',phone:''};}if(entry.hornets&&entry.hornets.length){hornets=entry.hornets.map(function(h){var nh=createHornet(h.name);nh.direction=h.direction||0;nh.flights=h.flights||[];nh.color=h.color||null;return nh;});}else{hornets=[createHornet('Frelon 1')];}resumedFromIndex=index;localStorage.setItem('resumed_idx',resumedFromIndex);document.getElementById('firstName').value=personalInfo.firstName||'';document.getElementById('lastName').value=personalInfo.lastName||'';document.getElementById('phone').value=personalInfo.phone||'';document.getElementById('locationInput').value=surveyLocation.name||surveyLocation.lat.toFixed(5)+', '+surveyLocation.lng.toFixed(5);document.getElementById('locationDisplay').textContent=surveyLocation.name||surveyLocation.lat.toFixed(5)+', '+surveyLocation.lng.toFixed(5);document.getElementById('inspectorInput').value=inspectorName;document.getElementById('notesField').value=notes;updatePotMarker();if(map)map.setView([surveyLocation.lat,surveyLocation.lng],16);renderAll();showToast(t('pot_resumed'));}
-
+function deleteHistEntry(index){
+  var hist = getHist();
+  if (index < 0 || index >= hist.length) return;
+  lastDeleted = { type: 'history', entry: hist[index], index: index, timestamp: Date.now() };
+  hist.splice(index, 1);
+  localStorage.setItem('vh', JSON.stringify(hist));
+  showHistory();
+  showUndoButton();
+}
+    
+function resumeHistEntryByIndex(index){
+  var hist = getHist();
+  if (index < 0 || index >= hist.length) { showAlert(t('entry_not_found'), '❌'); return; }
+  var entry = hist[index];
+  var hasCurrentData = hornets.some(function(h){ return h.flights.length > 0; }) || surveyLocation.name || inspectorName || notes;
+  if (hasCurrentData) { saveHist(); }
+  surveyLocation = entry.location || { lat: 46.8, lng: 6.8, name: '' };
+  inspectorName = entry.inspectorName || '';
+  notes = entry.notes || '';
+  if (entry.personalInfo) {
+    personalInfo = entry.personalInfo;
+  } else {
+    personalInfo = { firstName: '', lastName: '', phone: '' };
+  }
+  if (entry.hornets && entry.hornets.length) {
+    hornets = entry.hornets.map(function(h){
+      var nh = createHornet(h.name);
+      nh.direction = h.direction || 0;
+      nh.flights = h.flights || [];
+      nh.color = h.color || null;
+      return nh;
+    });
+  } else {
+    hornets = [createHornet('Frelon 1')];
+  }
+  resumedFromIndex = index;
+  localStorage.setItem('resumed_idx', resumedFromIndex);
+  document.getElementById('firstName').value = personalInfo.firstName || '';
+  document.getElementById('lastName').value = personalInfo.lastName || '';
+  document.getElementById('phone').value = personalInfo.phone || '';
+  document.getElementById('locationInput').value = surveyLocation.name || surveyLocation.lat.toFixed(5) + ', ' + surveyLocation.lng.toFixed(5);
+  document.getElementById('locationDisplay').textContent = surveyLocation.name || surveyLocation.lat.toFixed(5) + ', ' + surveyLocation.lng.toFixed(5);
+  document.getElementById('inspectorInput').value = inspectorName;
+  document.getElementById('notesField').value = notes;
+  updatePotMarker();
+  if (map) map.setView([surveyLocation.lat, surveyLocation.lng], 16);
+  renderAll();
+  showToast(t('pot_resumed'));
+}
+    
 function toggleHistoricalFlights(d){historicalVisibility[d]=!historicalVisibility[d];drawAnalysis(getHist());}
 
 function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';if(id==='compassModal')stopCompass();}
 
 function openLangModal(){var langs=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'en',flag:'🇬🇧',name:'English'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'it',flag:'🇮🇹',name:'Italiano'},{code:'rm',flag:'🇨🇭',name:'Rumantsch'}];var html='';for(var i=0;i<langs.length;i++){html+='<div class="lang-option'+(currentLang===langs[i].code?' selected':'')+'" onclick="changeLanguage(\''+langs[i].code+'\')"><span class="lang-flag">'+langs[i].flag+'</span><span class="lang-name">'+langs[i].name+'</span></div>';}document.getElementById('langOptions').innerHTML=html;openModal('langModal');}
-function changeLanguage(lang){currentLang=lang;localStorage.setItem('vl_v2',lang);closeModal('langModal');applyTranslations();renderAll();if(map)drawAnalysis();showToast(t('lang_changed'));}
-
+function changeLanguage(lang){
+  currentLang = lang;
+  localStorage.setItem('vl', lang);
+  closeModal('langModal');
+  applyTranslations();
+  renderAll();
+  if (map) drawAnalysis();
+  showToast(t('lang_changed'));
+}
+    
 function openCompassModal(){openModal('compassModal');startCompass();setTimeout(drawGraduations,100);}
 function startCompass(){
   compassActive=true;
@@ -1272,8 +1310,83 @@ function exportKML() {
         }, 1200);
     }, 400);
                                       }                                  
-function importData(e){var f=e.target.files[0];if(!f)return;var reader=new FileReader();reader.onload=function(ev){try{var d=JSON.parse(ev.target.result);var hasCurrentData=hornets.some(function(h){return h.flights.length>0})||surveyLocation.name||inspectorName||notes;if(hasCurrentData){saveHist();}if(d.hornets)hornets=d.hornets.map(function(h){var nh=createHornet(h.name||'Frelon');nh.direction=h.direction||0;nh.flights=h.flights||[];nh.color=h.color||null;return nh;});if(d.surveyLocation)surveyLocation=d.surveyLocation;inspectorName=d.inspectorName||'';notes=d.notes||'';if(d.personalInfo)personalInfo=d.personalInfo;resumedFromIndex=-1;localStorage.setItem('resumed_idx',resumedFromIndex);document.getElementById('firstName').value=personalInfo.firstName||'';document.getElementById('lastName').value=personalInfo.lastName||'';document.getElementById('phone').value=personalInfo.phone||'';updatePotMarker();renderAll();saveAll();showToast(t('import_success'));}catch(ex){showAlert(t('import_error'),'❌');}};reader.readAsText(f);e.target.value='';}
-function importHistory(e){var f=e.target.files[0];if(!f)return;var reader=new FileReader();reader.onload=function(ev){try{var d=JSON.parse(ev.target.result);if(Array.isArray(d)){var existingHist=getHist();var mergedHist=existingHist.slice();for(var i=0;i<d.length;i++){var isDuplicate=false;for(var j=0;j<mergedHist.length;j++){if(d[i].date===mergedHist[j].date&&d[i].location&&mergedHist[j].location&&d[i].location.lat===mergedHist[j].location.lat&&d[i].location.lng===mergedHist[j].location.lng){isDuplicate=true;break;}}if(!isDuplicate)mergedHist.push(d[i]);}mergedHist.sort(function(a,b){return new Date(a.date)-new Date(b.date);});var cutoff=Date.now()-HISTORY_DAYS*24*60*60*1000;mergedHist=mergedHist.filter(function(e){return new Date(e.date)>new Date(cutoff);});if(mergedHist.length>MAX_HISTORY)mergedHist=mergedHist.slice(-MAX_HISTORY);localStorage.setItem('vh_v2',JSON.stringify(mergedHist));var addedCount=mergedHist.length-existingHist.length;showToast(t('history_imported')+' ('+addedCount+' '+t('new_entries')+')');showHistory();}}catch(ex){showAlert(t('import_error'),'❌');}};reader.readAsText(f);e.target.value='';}
+function importData(e){
+  var f = e.target.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      var d = JSON.parse(ev.target.result);
+      var hasCurrentData = hornets.some(function(h){ return h.flights.length > 0; }) || surveyLocation.name || inspectorName || notes;
+      if (hasCurrentData) { saveHist(); }
+      if (d.hornets) {
+        hornets = d.hornets.map(function(h){
+          var nh = createHornet(h.name || 'Frelon');
+          nh.direction = h.direction || 0;
+          nh.flights = h.flights || [];
+          nh.color = h.color || null;
+          return nh;
+        });
+      }
+      if (d.surveyLocation) surveyLocation = d.surveyLocation;
+      inspectorName = d.inspectorName || '';
+      notes = d.notes || '';
+      if (d.personalInfo) personalInfo = d.personalInfo;
+      resumedFromIndex = -1;
+      localStorage.setItem('resumed_idx', resumedFromIndex);
+      document.getElementById('firstName').value = personalInfo.firstName || '';
+      document.getElementById('lastName').value = personalInfo.lastName || '';
+      document.getElementById('phone').value = personalInfo.phone || '';
+      updatePotMarker();
+      renderAll();
+      saveAll();
+      showToast(t('import_success'));
+    } catch(ex) {
+      showAlert(t('import_error'), '❌');
+    }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+}
+function importHistory(e){
+  var f = e.target.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try {
+      var d = JSON.parse(ev.target.result);
+      if (Array.isArray(d)) {
+        var existingHist = getHist();
+        var mergedHist = existingHist.slice();
+        for (var i = 0; i < d.length; i++) {
+          var isDuplicate = false;
+          for (var j = 0; j < mergedHist.length; j++) {
+            if (d[i].date === mergedHist[j].date &&
+                d[i].location && mergedHist[j].location &&
+                d[i].location.lat === mergedHist[j].location.lat &&
+                d[i].location.lng === mergedHist[j].location.lng) {
+              isDuplicate = true;
+              break;
+            }
+          }
+          if (!isDuplicate) mergedHist.push(d[i]);
+        }
+        mergedHist.sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
+        var cutoff = Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000;
+        mergedHist = mergedHist.filter(function(e){ return new Date(e.date) > new Date(cutoff); });
+        if (mergedHist.length > MAX_HISTORY) mergedHist = mergedHist.slice(-MAX_HISTORY);
+        localStorage.setItem('vh', JSON.stringify(mergedHist));
+        var addedCount = mergedHist.length - existingHist.length;
+        showToast(t('history_imported') + ' (' + addedCount + ' ' + t('new_entries') + ')');
+        showHistory();
+      }
+    } catch(ex) {
+      showAlert(t('import_error'), '❌');
+    }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+}
 
 function openVespafinderModal(){document.getElementById('vespafinderUrl').value='';openModal('vespafinderModal');}
 function parseVespafinderLink(url){
@@ -1349,8 +1462,33 @@ function showVespafinderChoice(data){
   };
 }
 
-function resetAll(){showConfirmAlert(t('confirm_reset'),'🔄',function(){saveHist();resumedFromIndex=-1;localStorage.removeItem('resumed_idx');hornets=[createHornet('Frelon 1')];surveyLocation={lat:46.8,lng:6.8,name:''};inspectorName='';notes='';personalInfo={firstName:'',lastName:'',phone:''};collapsedCards={};document.getElementById('locationInput').value='';document.getElementById('locationDisplay').textContent='';document.getElementById('inspectorInput').value='';document.getElementById('notesField').value='';document.getElementById('firstName').value='';document.getElementById('lastName').value='';document.getElementById('phone').value='';localStorage.removeItem('vd_v2');if(map){map.setView([46.8,6.8],16);}updatePotMarker();renderAll();saveAll();showToast(t('new_pot_created'));});}
-
+function resetAll(){
+  showConfirmAlert(t('confirm_reset'), '🔄', function(){
+    saveHist();
+    resumedFromIndex = -1;
+    localStorage.removeItem('resumed_idx');
+    hornets = [createHornet('Frelon 1')];
+    surveyLocation = { lat: 46.8, lng: 6.8, name: '' };
+    inspectorName = '';
+    notes = '';
+    personalInfo = { firstName: '', lastName: '', phone: '' };
+    collapsedCards = {};
+    document.getElementById('locationInput').value = '';
+    document.getElementById('locationDisplay').textContent = '';
+    document.getElementById('inspectorInput').value = '';
+    document.getElementById('notesField').value = '';
+    document.getElementById('firstName').value = '';
+    document.getElementById('lastName').value = '';
+    document.getElementById('phone').value = '';
+    localStorage.removeItem('vd');
+    if (map) { map.setView([46.8, 6.8], 16); }
+    updatePotMarker();
+    renderAll();
+    saveAll();
+    showToast(t('new_pot_created'));
+  });
+}
+    
 function changeHornetColor(hornetId){var h=hornets.find(function(x){return x.id===hornetId});if(!h)return;var currentColor=h.color;var html='<div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px;">';for(var i=0;i<COLORS.length;i++){var isSelected=(currentColor===COLORS[i]);html+='<div onclick="selectColor('+hornetId+',\''+COLORS[i]+'\')" class="color-dot'+(isSelected?' selected':'')+'" style="background:'+COLORS[i]+';" title="'+COLORS[i]+'"></div>';}html+='</div>';document.getElementById('colorPickerContent').innerHTML=html;openModal('colorPickerModal');}
 function selectColor(hornetId,color){var h=hornets.find(function(x){return x.id===hornetId});if(!h)return;for(var i=0;i<hornets.length;i++){var existingColor=hornets[i].color;if(hornets[i].id!==hornetId&&existingColor===color){showAlert(t('color_in_use')+' '+hornets[i].name,'🎨');return;}}h.color=color;closeModal('colorPickerModal');saveAll();renderAll();if(map)drawAnalysis();}
 
