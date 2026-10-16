@@ -1,8 +1,8 @@
-# 🐝 VespaTimer v1.4
+# 🐝 VespaTimer v2.0
 
 **Assistant digital pour relevés Pot-à-Mèche et triangulation de nids de frelons asiatiques**
 
-![Version](https://img.shields.io/badge/version-1.4-gold)
+![Version](https://img.shields.io/badge/version-2.0-gold)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-GitHub%20Pages-blue)
 
@@ -20,28 +20,6 @@ L'application permet de :
 - 💾 Sauvegarder et exporter les données (JSON, GPX, KML,PDF)
 - 📱 Fonctionner sur mobile et ordinateur 
 - support multilingue
+- boussole 360°
+- site vitrine
 ---
-
-## 🚀 Déploiement sur GitHub Pages
-
-### Méthode 1 : Déploiement automatique (recommandé)
-
-1. **Créez un nouveau dépôt** sur GitHub
-2. **Uploadez tous les fichiers** (index.html, manifest.json, service-worker.js, README.md)
-3. Allez dans **Settings > Pages**
-4. Sous "Source", sélectionnez **"main"** (ou "master")
-5. Cliquez sur **Save**
-6. Votre site sera disponible à l'adresse : `https://[votre-username].github.io/[nom-du-depot]/`
-
-### Méthode 2 : Déploiement manuel
-
-```bash
-# Clonez votre dépôt
-git clone https://github.com/[votre-username]/[nom-du-depot].git
-cd [nom-du-depot]
-
-# Copiez tous les fichiers dans le dossier
-# Puis commitez et poussez
-git add .
-git commit -m "Initial VespaTimer deployment"
-git push origin main
